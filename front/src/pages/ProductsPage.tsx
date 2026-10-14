@@ -97,7 +97,7 @@ export function ProductsPage() {
         && (!category || product.category === category);
     })
     .sort((a, b) => sort === "price"
-      ? String(a.price).localeCompare(String(b.price))
+      ? Number(a.price) - Number(b.price)
       : a.name.localeCompare(b.name));
 
   return (

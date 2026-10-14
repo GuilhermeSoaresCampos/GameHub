@@ -32,7 +32,7 @@ export class ProductRepository {
 
     if (filters.category) {
       values.push(filters.category);
-      conditions.push(`name = $${values.length}`);
+      conditions.push(`category ILIKE $${values.length}`);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
