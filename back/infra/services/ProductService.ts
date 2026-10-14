@@ -12,6 +12,14 @@ export class ProductService {
     return this.repository.create(input);
   }
 
+  async update(id: number, input: CreateProductDTO) {
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new Error("Identificador de produto inválido.");
+    }
+
+    return this.repository.update(id, input);
+  }
+
   async remove(id: number) {
     if (!Number.isInteger(id) || id <= 0) {
       throw new Error("Identificador de produto inválido.");

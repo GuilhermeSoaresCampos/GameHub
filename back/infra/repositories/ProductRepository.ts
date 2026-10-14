@@ -66,6 +66,22 @@ export class ProductRepository {
     return mapProduct(result.rows[0]);
   }
 
+  async update(id: number, input: CreateProductDTO): Promise<Product> {
+    const result = await db.query(
+      `UPDATE products
+       SET name = $1, description = $2, category = $3, price = $4, stock = $5
+       WHERE id = $6
+       RETURNING id, name, description, category, price, stock`,
+      [input.name, input.description, input.category, input.price, input.stock, id]
+    );
+
+    if (!result.rows[0]) {
+      throw new Error("Produto não encontrado.");
+    }
+
+    return mapProduct(result.rows[0]);
+  }
+
   async delete(id: number): Promise<void> {
     await db.query("DELETE FROM products WHERE id = $1", [id]);
   }
@@ -77,17 +93,41 @@ export class ProductRepository {
         COUNT(*) AS total_products,
         COUNT(*) FILTER (WHERE stock <= 5) AS low_stock,
         COALESCE(SUM(price * stock), 0) AS inventory_value,
-        COUNT(DISTINCT category) AS categories
+        COUNT(DISTINCT category) AS categories,
+        COALESCE(
+          (
+            SELECT json_agg(product_row)
+            FROM (
+              SELECT id, name, category, price, stock
+              FROM products
+              WHERE stock <= 5
+              ORDER BY stock ASC, price ASC
+              LIMIT 5
+            ) AS product_row
+          ),
+          '[]'::json
+        ) AS low_stock_products
       FROM products
     `);
     const row = result.rows[0];
     console.info(`[SQL] dashboard: 1 consulta em ${(performance.now() - dashboardStartedAt).toFixed(2)} ms`);
 
+    const lowStockProducts = Array.isArray(row.low_stock_products)
+      ? row.low_stock_products.map((product: Record<string, unknown>) => ({
+          id: Number(product.id),
+          name: String(product.name),
+          category: String(product.category),
+          price: Number(product.price),
+          stock: Number(product.stock)
+        }))
+      : [];
+
     return {
       totalProducts: Number(row.total_products),
       lowStock: Number(row.low_stock),
       inventoryValue: Number(row.inventory_value),
-      categories: Number(row.categories)
+      categories: Number(row.categories),
+      lowStockProducts
     };
   }
 }

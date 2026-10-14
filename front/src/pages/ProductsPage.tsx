@@ -6,7 +6,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import type { ProductDTO } from "@/dto/ProductDTO";
-import { createProduct, deleteProduct, getProducts } from "@/fetch/productRequests";
+import { createProduct, deleteProduct, getProducts, updateProduct } from "@/fetch/productRequests";
 import { measurePerformance } from "@/utils/measurePerformance";
 
 export function ProductsPage() {
@@ -19,6 +19,9 @@ export function ProductsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [createMessage, setCreateMessage] = useState("");
   const [creating, setCreating] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ProductDTO | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState("");
 
   useEffect(() => {
     const token = window.localStorage.getItem("gamehub-token");
@@ -90,6 +93,36 @@ export function ProductsPage() {
     }
   }
 
+  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
+    if (!editingProduct) return;
+
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    setUpdating(true);
+    setError("");
+    setUpdateMessage("");
+
+    try {
+      await updateProduct(editingProduct.id, {
+        name: String(data.get("name") ?? "").trim(),
+        description: String(data.get("description") ?? "").trim(),
+        category: String(data.get("category") ?? "Jogos") as ProductDTO["category"],
+        price: Number(data.get("price")),
+        stock: Number(data.get("stock"))
+      });
+
+      setUpdateMessage("Produto atualizado com sucesso.");
+      setEditingProduct(null);
+      form.reset();
+      await loadProducts();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível atualizar o produto.");
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   const visibleProducts = products;
 
   return (
@@ -104,18 +137,42 @@ export function ProductsPage() {
       </div>
 
       {isAdmin && (
-        <form className="product-create-form" onSubmit={handleCreate}>
-          <h2>Cadastrar produto</h2>
-          <div className="product-create-form__grid">
-            <label>Nome<input name="name" required minLength={2} maxLength={100} placeholder="Nome do produto" /></label>
-            <label>Descrição<input name="description" required minLength={3} maxLength={500} placeholder="Descrição curta" /></label>
-            <label>Categoria<select name="category" defaultValue="Jogos"><option value="Consoles">Consoles</option><option value="Jogos">Jogos</option><option value="Acessórios">Acessórios</option></select></label>
-            <label>Preço<input name="price" type="number" min="0.01" step="0.01" required defaultValue="199.90" /></label>
-            <label>Estoque<input name="stock" type="number" min="0" step="1" required defaultValue="10" /></label>
-            <button className="button" disabled={creating}>{creating ? "Cadastrando..." : "Cadastrar produto"}</button>
-          </div>
-          {createMessage && <p className="form-success" role="status">{createMessage}</p>}
-        </form>
+        <>
+          <form className="product-create-form" onSubmit={handleCreate}>
+            <h2>Cadastrar produto</h2>
+            <div className="product-create-form__grid">
+              <label>Nome<input name="name" required minLength={2} maxLength={100} placeholder="Nome do produto" /></label>
+              <label>Descrição<input name="description" required minLength={3} maxLength={500} placeholder="Descrição curta" /></label>
+              <label>Categoria<select name="category" defaultValue="Jogos"><option value="Consoles">Consoles</option><option value="Jogos">Jogos</option><option value="Acessórios">Acessórios</option></select></label>
+              <label>Preço<input name="price" type="number" min="0.01" step="0.01" required defaultValue="199.90" /></label>
+              <label>Estoque<input name="stock" type="number" min="0" step="1" required defaultValue="10" /></label>
+              <button className="button" disabled={creating}>{creating ? "Cadastrando..." : "Cadastrar produto"}</button>
+            </div>
+            {createMessage && <p className="form-success" role="status">{createMessage}</p>}
+          </form>
+
+          {editingProduct && (
+            <form className="product-create-form" onSubmit={handleUpdate}>
+              <h2>Editar produto</h2>
+              <div className="product-create-form__grid">
+                <label>Nome<input name="name" required minLength={2} maxLength={100} defaultValue={editingProduct.name} /></label>
+                <label>Descrição<input name="description" required minLength={3} maxLength={500} defaultValue={editingProduct.description} /></label>
+                <label>Categoria<select name="category" defaultValue={editingProduct.category}>
+                  <option value="Consoles">Consoles</option>
+                  <option value="Jogos">Jogos</option>
+                  <option value="Acessórios">Acessórios</option>
+                </select></label>
+                <label>Preço<input name="price" type="number" min="0.01" step="0.01" required defaultValue={editingProduct.price} /></label>
+                <label>Estoque<input name="stock" type="number" min="0" step="1" required defaultValue={editingProduct.stock} /></label>
+                <div>
+                  <button type="submit" className="button" disabled={updating}>{updating ? "Salvando..." : "Salvar alterações"}</button>
+                  <button type="button" className="button button--danger" onClick={() => setEditingProduct(null)} style={{ marginLeft: "0.5rem" }}>Cancelar</button>
+                </div>
+              </div>
+              {updateMessage && <p className="form-success" role="status">{updateMessage}</p>}
+            </form>
+          )}
+        </>
       )}
 
       <div className="filters">
@@ -144,7 +201,12 @@ export function ProductsPage() {
       {loading ? <LoadingState /> : error ? <ErrorState message={error} onRetry={loadProducts} /> : (
         <div className="product-grid">
           {visibleProducts.map((product) => (
-            <ProductCard key={product.id} product={product} onDelete={handleDelete} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              onDelete={isAdmin ? handleDelete : undefined}
+              onEdit={isAdmin ? setEditingProduct : undefined}
+            />
           ))}
           {visibleProducts.length === 0 && <p>Nenhum produto encontrado.</p>}
         </div>

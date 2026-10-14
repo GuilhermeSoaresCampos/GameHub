@@ -7,6 +7,7 @@ const controller = new ProductController();
 
 router.get("/", controller.list);
 router.post("/", authMiddleware, adminOnly, controller.create);
+router.put("/:id", authMiddleware, adminOnly, controller.update);
 router.delete("/:id", authMiddleware, adminOnly, controller.remove);
 
 export default router;

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { createProductSchema } from "../dto/CreateProductDTO";
+import { createProductSchema, updateProductSchema } from "../dto/CreateProductDTO";
 import { ProductService } from "../../infra/services/ProductService";
 
 export class ProductController {
@@ -32,6 +32,21 @@ export class ProductController {
 
     const product = await this.service.create(parsed.data);
     response.status(201).json(product);
+  };
+
+  update = async (request: Request, response: Response) => {
+    const parsed = updateProductSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      response.status(400).json({
+        message: "Dados inválidos.",
+        errors: parsed.error.flatten().fieldErrors
+      });
+      return;
+    }
+
+    const product = await this.service.update(Number(request.params.id), parsed.data);
+    response.json(product);
   };
 
   remove = async (request: Request, response: Response) => {

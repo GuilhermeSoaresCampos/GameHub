@@ -4,11 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "@/components/MetricCard";
 import { apiRequest } from "@/fetch/api";
 
+interface DashboardProductAlert {
+  id: number;
+  name: string;
+  category: string;
+  price: number;
+  stock: number;
+}
+
 interface DashboardDTO {
   totalProducts: number;
   lowStock: number;
   inventoryValue: number;
   categories: number;
+  lowStockProducts: DashboardProductAlert[];
 }
 
 export function DashboardPage() {
@@ -73,6 +82,22 @@ export function DashboardPage() {
           />
         ))}
       </div>
+
+      {data.lowStockProducts.length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h2>Estoque crítico</h2>
+          <ul style={{ marginTop: "0.75rem", paddingLeft: "1.25rem" }}>
+            {data.lowStockProducts.map((product) => (
+              <li key={product.id} style={{ marginBottom: "0.5rem" }}>
+                <strong>{product.name}</strong> · {product.category} · {product.stock} un. · {product.price.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL"
+                })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

@@ -28,6 +28,13 @@ export function createProduct(product: Omit<ProductDTO, "id">) {
   });
 }
 
+export function updateProduct(id: number, product: Omit<ProductDTO, "id">) {
+  return apiRequest<ProductDTO>(`/products/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(product)
+  });
+}
+
 export function deleteProduct(id: number) {
   return apiRequest<{ message: string }>(`/products/${id}`, {
     method: "DELETE"
