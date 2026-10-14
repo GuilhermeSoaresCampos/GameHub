@@ -6,10 +6,15 @@ export class ProductController {
   constructor(private readonly service = new ProductService()) {}
 
   list = async (request: Request, response: Response) => {
+    const limit = Number(request.query.limit ?? 50);
+    const offset = Number(request.query.offset ?? 0);
+
     const products = await this.service.list({
       search: String(request.query.search ?? ""),
       category: String(request.query.category ?? ""),
-      sort: String(request.query.sort ?? "name")
+      sort: String(request.query.sort ?? "name"),
+      limit: Number.isFinite(limit) ? limit : 50,
+      offset: Number.isFinite(offset) ? offset : 0
     });
     response.json(products);
   };

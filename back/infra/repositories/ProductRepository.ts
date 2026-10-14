@@ -6,6 +6,8 @@ export interface ProductFilters {
   search?: string;
   category?: string;
   sort?: string;
+  limit?: number;
+  offset?: number;
 }
 
 function mapProduct(row: Record<string, unknown>): Product {
@@ -23,32 +25,33 @@ export class ProductRepository {
   async findAll(filters: ProductFilters): Promise<Product[]> {
     const conditions: string[] = [];
     const values: unknown[] = [];
+    const normalizedSearch = filters.search?.trim();
+    const normalizedCategory = filters.category?.trim();
+    const limit = Number.isFinite(filters.limit) && Number(filters.limit) > 0 ? Math.min(Number(filters.limit), 200) : 50;
+    const offset = Number.isFinite(filters.offset) && Number(filters.offset) >= 0 ? Number(filters.offset) : 0;
 
-    if (filters.search) {
-      values.push(`%${filters.search}%`);
+    if (normalizedSearch) {
+      values.push(`%${normalizedSearch}%`);
       const parameter = `$${values.length}`;
-      conditions.push(`(name ILIKE ${parameter} OR description ILIKE ${parameter})`);
+      conditions.push(`(LOWER(name) ILIKE LOWER(${parameter}) OR LOWER(description) ILIKE LOWER(${parameter}))`);
     }
 
-    if (filters.category) {
-      values.push(filters.category);
+    if (normalizedCategory) {
+      values.push(normalizedCategory);
       conditions.push(`category ILIKE $${values.length}`);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const orderBy = filters.sort === "price" ? "price ASC" : "name ASC";
-    const sql = `SELECT id, name, description, category, price, stock FROM products ${where} ORDER BY ${orderBy}`;
+    const limitIndex = values.length + 1;
+    const offsetIndex = values.length + 2;
+    values.push(limit, offset);
 
-    const firstStartedAt = performance.now();
-    const discardedResult = await db.query(sql, values);
-    console.info(
-      `[SQL LENTO] listagem descartada: ${discardedResult.rowCount ?? 0} linhas em ${(performance.now() - firstStartedAt).toFixed(2)} ms`
-    );
-
-    const secondStartedAt = performance.now();
+    const sql = `SELECT id, name, description, category, price, stock FROM products ${where} ORDER BY ${orderBy} LIMIT $${limitIndex} OFFSET $${offsetIndex}`;
+    const startedAt = performance.now();
     const result = await db.query(sql, values);
     console.info(
-      `[SQL LENTO] listagem retornada: ${result.rowCount ?? 0} linhas em ${(performance.now() - secondStartedAt).toFixed(2)} ms`
+      `[SQL] listagem retornada: ${result.rowCount ?? 0} linhas em ${(performance.now() - startedAt).toFixed(2)} ms`
     );
     return result.rows.map(mapProduct);
   }

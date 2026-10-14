@@ -65,7 +65,7 @@ export function ProductsPage() {
     try {
       const result = await measurePerformance(
         "carregamento de produtos",
-        () => getProducts({ search, category, sort })
+        () => getProducts({ search: search.trim(), category, sort, limit: 50 })
       );
       setProducts(result);
     } catch (requestError) {
@@ -90,15 +90,7 @@ export function ProductsPage() {
     }
   }
 
-  const visibleProducts = products
-    .filter((product) => {
-      const term = search.toLowerCase();
-      return (product.name.toLowerCase().includes(term) || product.description.toLowerCase().includes(term))
-        && (!category || product.category === category);
-    })
-    .sort((a, b) => sort === "price"
-      ? Number(a.price) - Number(b.price)
-      : a.name.localeCompare(b.name));
+  const visibleProducts = products;
 
   return (
     <section>
