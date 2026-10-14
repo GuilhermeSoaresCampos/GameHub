@@ -72,17 +72,22 @@ export class ProductRepository {
 
   async getDashboard() {
     const dashboardStartedAt = performance.now();
-    const total = await db.query("SELECT COUNT(*) AS value FROM products");
-    const lowStock = await db.query("SELECT COUNT(*) AS value FROM products WHERE stock <= 5");
-    const inventory = await db.query("SELECT COALESCE(SUM(price * stock), 0) AS value FROM products");
-    const categories = await db.query("SELECT COUNT(DISTINCT category) AS value FROM products");
-    console.info(`[SQL LENTO] dashboard: 4 consultas sequenciais em ${(performance.now() - dashboardStartedAt).toFixed(2)} ms`);
+    const result = await db.query(`
+      SELECT
+        COUNT(*) AS total_products,
+        COUNT(*) FILTER (WHERE stock <= 5) AS low_stock,
+        COALESCE(SUM(price * stock), 0) AS inventory_value,
+        COUNT(DISTINCT category) AS categories
+      FROM products
+    `);
+    const row = result.rows[0];
+    console.info(`[SQL] dashboard: 1 consulta em ${(performance.now() - dashboardStartedAt).toFixed(2)} ms`);
 
     return {
-      totalProducts: Number(total.rows[0].value),
-      lowStock: Number(lowStock.rows[0].value),
-      inventoryValue: Number(inventory.rows[0].value),
-      categories: Number(categories.rows[0].value)
+      totalProducts: Number(row.total_products),
+      lowStock: Number(row.low_stock),
+      inventoryValue: Number(row.inventory_value),
+      categories: Number(row.categories)
     };
   }
 }
