@@ -19,7 +19,7 @@ export function LoginPage() {
     try {
       const result = await login({ email, password });
       window.localStorage.setItem("gamehub-token", result.token);
-      router.push("/dashboard");
+      router.push("/products");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Falha no login.");
     } finally {
