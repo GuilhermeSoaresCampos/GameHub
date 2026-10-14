@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "@/components/MetricCard";
 import { apiRequest } from "@/fetch/api";
 
@@ -16,12 +16,44 @@ export function DashboardPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    apiRequest<DashboardDTO>("/dashboard")
-      .then(setData)
+    const controller = new AbortController();
+
+    apiRequest<DashboardDTO>("/dashboard", { signal: controller.signal })
+      .then((dashboardData) => {
+        if (!controller.signal.aborted) {
+          setData(dashboardData);
+        }
+      })
       .catch((requestError: unknown) => {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") {
+          return;
+        }
+
         setError(requestError instanceof Error ? requestError.message : "Erro ao carregar dashboard.");
       });
+
+    return () => controller.abort();
   }, []);
+
+  const metrics = useMemo(() => {
+    if (!data) {
+      return [] as Array<{ label: string; value: string; description: string }>;
+    }
+
+    return [
+      { label: "Produtos", value: String(data.totalProducts), description: "Itens cadastrados" },
+      { label: "Estoque baixo", value: String(data.lowStock), description: "Cinco unidades ou menos" },
+      { label: "Categorias", value: String(data.categories), description: "Categorias disponíveis" },
+      {
+        label: "Valor em estoque",
+        value: data.inventoryValue.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL"
+        }),
+        description: "Preço × quantidade"
+      }
+    ];
+  }, [data]);
 
   if (error) return <p className="form-error">{error}</p>;
   if (!data) return <p className="state-message">Carregando indicadores...</p>;
@@ -32,10 +64,14 @@ export function DashboardPage() {
       <h1>Dashboard</h1>
       <p className="section-intro">Indicadores atuais do catálogo GameHub.</p>
       <div className="metrics-grid">
-        <MetricCard label="Produtos" value={String(data.totalProducts)} description="Itens cadastrados" />
-        <MetricCard label="Estoque baixo" value={String(data.lowStock)} description="Cinco unidades ou menos" />
-        <MetricCard label="Categorias" value={String(data.categories)} description="Categorias disponíveis" />
-        <MetricCard label="Valor em estoque" value={data.inventoryValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} description="Preço × quantidade" />
+        {metrics.map((metric) => (
+          <MetricCard
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+            description={metric.description}
+          />
+        ))}
       </div>
     </section>
   );
